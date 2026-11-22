@@ -11,7 +11,9 @@ input always produces the same output bytes.
 After writing the copy, the program verifies it byte for byte against
 the source (file size and SHA-256 digest) and exits non-zero with a
 clear message if anything differs, so a bad copy can never pass
-silently.
+silently. Before copying, it also checks the source exists and is
+really a PNG file (8-byte signature), so a missing or wrong file
+fails loudly instead of being copied.
 """
 import hashlib
 import os
@@ -34,6 +36,12 @@ def digest(path):
 def main(argv):
     base = os.path.dirname(os.path.abspath(__file__))
     source = os.path.join(base, "entry.png")
+    if not os.path.isfile(source):
+        raise SystemExit("missing entry image: " + source)
+    with open(source, "rb") as f:
+        header = f.read(8)
+    if header != b"\x89PNG\r\n\x1a\n":
+        raise SystemExit("entry image is not a PNG file: " + source)
     out_dir = argv[1] if len(argv) > 1 else os.environ.get(
         "MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(out_dir, exist_ok=True)
